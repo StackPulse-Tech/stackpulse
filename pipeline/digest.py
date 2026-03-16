@@ -84,14 +84,30 @@ def generate_digest(tools):
     return res.json()["content"][0]["text"]
 
 
-def create_beehiiv_draft(subject, html_content):
-    if not BEEHIIV_API_KEY or not BEEHIIV_PUB_ID:
-        # Save locally
-        out = f"/tmp/stackpulse_digest_{datetime.now().strftime('%Y%m%d')}.html"
-        with open(out, "w") as f:
-            f.write(f"<h1>{subject}</h1>\n{html_content}")
-        print(f"Digest saved locally: {out}")
-        return
+def save_digest_to_repo(subject, html_content, date_str):
+    """Save digest as HTML file in the repo for manual review."""
+    out_dir = "digests"
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = f"{out_dir}/{date_str}.html"
+    with open(out_path, "w") as f:
+        f.write(f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>{subject}</title></head>
+<body>
+<h1>{subject}</h1>
+<p><em>Generated: {datetime.now().isoformat()} — Review and paste into Beehiiv dashboard</em></p>
+<hr>
+{html_content}
+</body>
+</html>""")
+    print(f"Digest saved to repo: {out_path}")
+    return out_path
+
+
+def create_beehiiv_draft(subject, html_content, date_str):
+    if not BEEHIIV_API_KEY:
+        # Manual mode — save to repo file for review
+        return save_digest_to_repo(subject, html_content, date_str)
 
     week = datetime.now().strftime("%b %d, %Y")
     res = requests.post(
@@ -124,7 +140,8 @@ if __name__ == "__main__":
     print("Generating digest...")
     html = generate_digest(tools)
 
+    date_str = datetime.now().strftime("%Y-%m-%d")
     week = datetime.now().strftime("%b %d")
     subject = f"StackPulse #{week} — What Actually Works This Week"
-    create_beehiiv_draft(subject, html)
+    create_beehiiv_draft(subject, html, date_str)
     print("Done.")
